@@ -256,6 +256,7 @@ def main(args):
     set_encoder_params_from_state(saved_state.encoder_params, args)
 
     tensorizer, encoder, _ = init_biencoder_components(args.encoder_model_type, args, inference_only=True)
+    q_tensorizer = tensorizer[0]
 
     encoder = encoder.question_model
 
@@ -280,7 +281,7 @@ def main(args):
     else:
         index = DenseFlatIndexer(vector_size, args.index_buffer)
 
-    retriever = DenseRetriever(encoder, args.batch_size, tensorizer, index)
+    retriever = DenseRetriever(encoder, args.batch_size, q_tensorizer, index)
 
     if args.dureader_test:
         # get questions & question ids

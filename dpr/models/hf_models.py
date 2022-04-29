@@ -68,7 +68,7 @@ def get_bert_tensorizer(args, tokenizer=None):
     # TODO q和d的 sequence_length 需单独设置
     if not tokenizer:
         tokenizer = get_bert_tokenizer(args.pretrained_model_cfg, do_lower_case=args.do_lower_case)
-    return BertTensorizer(tokenizer, args.sequence_length)
+    return [BertTensorizer(tokenizer, args.q_sequence_length), BertTensorizer(tokenizer, args.p_sequence_length)]
 
 
 def get_roberta_tensorizer(args, tokenizer=None):

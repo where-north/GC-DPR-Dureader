@@ -39,7 +39,10 @@ def add_encoder_params(parser: argparse.ArgumentParser):
                         help="Saved bi-encoder checkpoint file to initialize the model")
     parser.add_argument("--projection_dim", default=0, type=int,
                         help="Extra linear layer on top of standard bert/roberta encoder")
-    parser.add_argument("--sequence_length", type=int, default=512, help="Max length of the encoder input sequence")
+    parser.add_argument("--q_sequence_length", type=int, default=512,
+                        help="Max length of the encoder input sequence (query)")
+    parser.add_argument("--p_sequence_length", type=int, default=512,
+                        help="Max length of the encoder input sequence (paragraph)")
 
 
 def add_training_params(parser: argparse.ArgumentParser):
@@ -99,7 +102,7 @@ def add_reader_preprocessing_params(parser: argparse.ArgumentParser):
 def get_encoder_checkpoint_params_names():
     return ['do_lower_case', 'pretrained_model_cfg', 'encoder_model_type',
             'pretrained_file',
-            'projection_dim', 'sequence_length']
+            'projection_dim', 'q_sequence_length', 'p_sequence_length']
 
 
 def get_encoder_params_state(args):

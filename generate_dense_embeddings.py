@@ -43,7 +43,7 @@ logger.addHandler(console)
 class CtxDataset(Dataset):
     def __init__(self, ctx_rows: List[Tuple[object, str, str]], tensorizer: Tensorizer, insert_title: bool = True):
         self.rows = ctx_rows
-        self.tensorizer = tensorizer
+        self.ctx_tensorizer = tensorizer
         self.insert_title = insert_title
 
     def __len__(self):
@@ -52,27 +52,27 @@ class CtxDataset(Dataset):
     def __getitem__(self, item):
         ctx = self.rows[item]
 
-        return self.tensorizer.text_to_tensor(ctx[1], title=ctx[2] if self.insert_title else None)
+        return self.ctx_tensorizer.text_to_tensor(ctx[1], title=ctx[2] if self.insert_title else None)
 
 
 def no_op_collate(xx: List[object]):
     return xx
 
 
-def gen_ctx_vectors(ctx_rows: List[Tuple[object, str, str]], model: nn.Module, tensorizer: Tensorizer,
+def gen_ctx_vectors(ctx_rows: List[Tuple[object, str, str]], model: nn.Module, tensorizer: List,
                     insert_title: bool = True, fp16: bool = False) -> List[Tuple[object, np.array]]:
     bsz = args.batch_size
     total = 0
     results = []
-
-    dataset = CtxDataset(ctx_rows, tensorizer, insert_title)
+    ctx_tensorizer = tensorizer[1]
+    dataset = CtxDataset(ctx_rows, ctx_tensorizer, insert_title)
     loader = DataLoader(
         dataset, shuffle=False, num_workers=2, collate_fn=no_op_collate, drop_last=False, batch_size=bsz)
 
     for batch_id, batch_token_tensors in enumerate(tqdm(loader)):
         ctx_ids_batch = move_to_device(torch.stack(batch_token_tensors, dim=0), args.device)
         ctx_seg_batch = move_to_device(torch.zeros_like(ctx_ids_batch), args.device)
-        ctx_attn_mask = move_to_device(tensorizer.get_attn_mask(ctx_ids_batch), args.device)
+        ctx_attn_mask = move_to_device(ctx_tensorizer.get_attn_mask(ctx_ids_batch), args.device)
         with torch.no_grad():
             if fp16:
                 with autocast():

@@ -102,7 +102,7 @@ class BiEncoder(nn.Module):
     @classmethod
     def get_input_create_fn(
             cls,
-            tensorizer: Tensorizer,
+            tensorizer: List,
             insert_title: bool,
             num_hard_negatives: int = 0,
             num_other_negatives: int = 0,
@@ -123,7 +123,7 @@ class BiEncoder(nn.Module):
     @classmethod
     def create_biencoder_input(cls,
                                samples: List,
-                               tensorizer: Tensorizer,
+                               tensorizer: List,
                                insert_title: bool,
                                num_hard_negatives: int = 0,
                                num_other_negatives: int = 0,
@@ -141,6 +141,7 @@ class BiEncoder(nn.Module):
         :param shuffle_positives: shuffles positive passages pools
         :return: BiEncoderBatch tuple
         """
+        q_tensorizer, ctx_tensorizer = tensorizer[0], tensorizer[1]
         question_tensors = []
         ctx_tensors = []
         positive_ctx_indices = []
@@ -172,7 +173,7 @@ class BiEncoder(nn.Module):
 
             current_ctxs_len = len(ctx_tensors)
 
-            sample_ctxs_tensors = [tensorizer.text_to_tensor(ctx['text'], title=ctx['title'] if insert_title else None)
+            sample_ctxs_tensors = [ctx_tensorizer.text_to_tensor(ctx['text'], title=ctx['title'] if insert_title else None)
                                    for ctx in all_ctxs]
 
             ctx_tensors.extend(sample_ctxs_tensors)
@@ -182,7 +183,7 @@ class BiEncoder(nn.Module):
                  range(current_ctxs_len + hard_negatives_start_idx,
                        current_ctxs_len + hard_negatives_end_idx)])  # hard_neg段落的index list
 
-            question_tensors.append(tensorizer.text_to_tensor(question))
+            question_tensors.append(q_tensorizer.text_to_tensor(question))
 
         ctxs_tensor = torch.cat([ctx.view(1, -1) for ctx in ctx_tensors], dim=0)
         questions_tensor = torch.cat([q.view(1, -1) for q in question_tensors], dim=0)

@@ -91,6 +91,7 @@ class BiEncoderTrainer(object):
             saved_state = load_states_from_checkpoint(model_file)
             set_encoder_params_from_state(saved_state.encoder_params, args)
 
+        # tensorizer 是包含 q_tensorizer 和 p_tensorizer 的列表
         tensorizer, model, optimizer = init_biencoder_components(args.encoder_model_type, args)
 
         model, optimizer = setup_for_distributed_mode(model, optimizer, args.device, args.n_gpu,
@@ -305,8 +306,9 @@ class BiEncoderTrainer(object):
                                 batch_start:batch_start + sub_batch_size]  # 0:128其实是0:16 只有16条数据（因为dev没有提供negatives）
                 ctx_seg_batch = ctxs_segments[batch_start:batch_start + sub_batch_size]
 
-                q_attn_mask = self.tensorizer.get_attn_mask(q_ids)
-                ctx_attn_mask = self.tensorizer.get_attn_mask(ctx_ids_batch)
+                q_tensorizer, ctx_tensorizer = self.tensorizer[0], self.tensorizer[1]
+                q_attn_mask = q_tensorizer.get_attn_mask(q_ids)
+                ctx_attn_mask = ctx_tensorizer.get_attn_mask(ctx_ids_batch)
                 with torch.no_grad():
                     if args.fp16:
                         with autocast():
@@ -535,12 +537,12 @@ def _calc_loss(args, loss_function, local_q_vector, local_ctx_vectors, local_pos
     return loss, is_correct
 
 
-def _do_biencoder_fwd_pass(model: nn.Module, input: BiEncoderBatch, tensorizer: Tensorizer, args) -> (
+def _do_biencoder_fwd_pass(model: nn.Module, input: BiEncoderBatch, tensorizer, args) -> (
         torch.Tensor, int):
     input = BiEncoderBatch(**move_to_device(input._asdict(), args.device))
-
-    q_attn_mask = tensorizer.get_attn_mask(input.question_ids)
-    ctx_attn_mask = tensorizer.get_attn_mask(input.context_ids)
+    q_tensorizer, ctx_tensorizer = tensorizer[0], tensorizer[1]
+    q_attn_mask = q_tensorizer.get_attn_mask(input.question_ids)
+    ctx_attn_mask = ctx_tensorizer.get_attn_mask(input.context_ids)
 
     if model.training:
         if args.fp16:
@@ -580,14 +582,15 @@ def _do_biencoder_fwd_pass(model: nn.Module, input: BiEncoderBatch, tensorizer: 
 def _do_biencoder_fwd_bwd_pass_cached(
         model: nn.Module,
         input: BiEncoderBatch,
-        tensorizer: Tensorizer,
+        tensorizer,
         args,
         trainer: BiEncoderTrainer,
 ) -> (torch.Tensor, int):
     input = BiEncoderBatch(**move_to_device(input._asdict(), args.device))
 
-    q_attn_mask = tensorizer.get_attn_mask(input.question_ids)
-    ctx_attn_mask = tensorizer.get_attn_mask(input.context_ids)
+    q_tensorizer, ctx_tensorizer = tensorizer[0], tensorizer[1]
+    q_attn_mask = q_tensorizer.get_attn_mask(input.question_ids)
+    ctx_attn_mask = ctx_tensorizer.get_attn_mask(input.context_ids)
 
     if model.training:
         q_id_chunks = input.question_ids.split(args.q_chunk_size)
