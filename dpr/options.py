@@ -39,9 +39,9 @@ def add_encoder_params(parser: argparse.ArgumentParser):
                         help="Saved bi-encoder checkpoint file to initialize the model")
     parser.add_argument("--projection_dim", default=0, type=int,
                         help="Extra linear layer on top of standard bert/roberta encoder")
-    parser.add_argument("--q_sequence_length", type=int, default=512,
+    parser.add_argument("--q_sequence_length", type=int, default=32,
                         help="Max length of the encoder input sequence (query)")
-    parser.add_argument("--p_sequence_length", type=int, default=512,
+    parser.add_argument("--p_sequence_length", type=int, default=384,
                         help="Max length of the encoder input sequence (paragraph)")
 
 
