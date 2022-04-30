@@ -362,7 +362,7 @@ if __name__ == '__main__':
     parser.add_argument('--n-docs', type=int, default=200, help="Amount of top docs to return")
     parser.add_argument('--validation_workers', type=int, default=16,
                         help="Number of parallel processes to validate results")
-    parser.add_argument('--batch_size', type=int, default=32, help="Batch size for question encoder forward pass")
+    parser.add_argument('--batch_size', type=int, default=128, help="Batch size for question encoder forward pass")
     parser.add_argument('--index_buffer', type=int, default=1000,
                         help="Temporal memory data buffer size (in samples) for indexer")
     parser.add_argument("--hnsw_index", action='store_true', help='If enabled, use inference time efficient HNSW index')

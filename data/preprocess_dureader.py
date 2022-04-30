@@ -228,7 +228,7 @@ import re
 dev.json格式：
 [{'question_id': '...', 'question': '...', 'answer_paragraphs': [{'paragraph_id': '...', 'paragraph_text': '...'}, ...]}, ...]
 检索回的top50 paragraph 文件格式：
-data4rerank:
+dev_data_top50.json:
    [
    {'q_text': '',
    'q_id': '',
@@ -252,8 +252,8 @@ data4rerank:
 ]
 '''
 # dev_path = './dureader_data/dureader-retrieval-baseline-dataset/dev/dev.json'
-# pre_dev_path = '../data4rerank.json'
-# save_path = './dureader_data/dureader-retrieval-baseline-dataset/dev/'
+# pre_dev_path = '../dev_data_top50.json'
+# save_path = './dureader_data/retrieval_train_data/'
 # dev_file = open(dev_path, 'r', encoding='utf-8')
 # pre_dev_file = open(pre_dev_path, 'r', encoding='utf-8')
 # dev_with_hn = []
@@ -296,9 +296,79 @@ data4rerank:
 # with open(save_path + "dev_with_hn.json", 'w', encoding='utf-8') as f:
 #     json.dump(dev_with_hn, f, ensure_ascii=False, indent=4)
 
-import torch
 
-data = torch.load('../macbert_encoded_train_q.pkl')
+'''
+将0.566模型检索回的hard_negatives(只取10个)作为新的检索训练集
+train.json格式：
+[{'question_id': '...', 'question': '...', 'answer_paragraphs': [{'paragraph_id': '...', 'paragraph_text': '...'}, ...]}, ...]
+检索回的top50 paragraph 文件格式：
+train_data_top50.json:
+   [
+   {'q_text': '',
+   'q_id': '',
+   'top_50': [(doc_id, doc_text), (...)]}
+   ]
+融合前两者成新的dual_train.json文件：
+[  
+  {  
+   "question": "....",  
+   "answers": ["...", "...", "..."],  
+   "positive_ctxs": [{  
+      "title": "...",  
+      "text": "...."  
+   }],  
+   "negative_ctxs": ["..."],  
+   "hard_negative_ctxs": [{  
+      "title": "...",  
+      "text": "...."  
+   }]  
+  },  
+  ...  
+]  
+'''
+input_data_path = '../train_data_top50.json'
+output_data_path = './dureader_data/retrieval_train_data/dual_train.json'
+train_path = './dureader_data/dureader_retrieval-data/train.json'
 
-if torch.isnan(data[32]).any().item() is True:
-    print(1)
+train_file = open(train_path, 'r', encoding='utf-8')
+pre_train_file = open(input_data_path, 'r', encoding='utf-8')
+dual_train = []
+train_file_list = [json.loads(i) for i in train_file.readlines()]
+pre_train_file_list = json.load(pre_train_file)
+for item1, item2 in zip(train_file_list, pre_train_file_list):
+    temp = {
+        "question": item1["question"],
+        "answers": [],
+        "positive_ctxs": [],
+        "negative_ctxs": [],
+        "hard_negative_ctxs": [],
+    }
+    answer_paragraphs = item1["answer_paragraphs"]
+    answer_paragraphs_ids = [i["paragraph_id"] for i in answer_paragraphs]
+    positive_ctxs = [{"title": "",
+                      "text": i["paragraph_text"],
+                      "score": "",
+                      "title_score": "",
+                      "passage_id": i["paragraph_id"]} for i in answer_paragraphs]
+    hard_negative_ctxs = []
+    # 从尾部开始取 hard negatives
+    for res in item2["top_50"][::-1]:
+        if len(hard_negative_ctxs) >= 10:
+            break
+        if res[0] not in answer_paragraphs_ids:
+            hard_negative_ctxs.append({
+                "title": "",
+                "text": res[1],
+                "score": "",
+                "title_score": "",
+                "passage_id": res[0]
+            })
+
+    temp["hard_negative_ctxs"] = hard_negative_ctxs
+    temp["positive_ctxs"] = positive_ctxs
+    dual_train.append(temp)
+
+print(f"dual_train len：{len(dual_train)}")
+with open(output_data_path, 'w', encoding='utf-8') as f:
+    json.dump(dual_train, f, ensure_ascii=False, indent=4)
+

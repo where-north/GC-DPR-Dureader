@@ -48,6 +48,9 @@ if (logger.hasHandlers()):
     logger.handlers.clear()
 console = logging.StreamHandler()
 logger.addHandler(console)
+fh = logging.FileHandler('./macbert_model_ckp/log')
+fh.setLevel(logging.INFO)
+logger.addHandler(fh)
 
 
 class RandContext:
