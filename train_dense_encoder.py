@@ -38,6 +38,9 @@ from dpr.utils.dist_utils import all_gather_list
 from dpr.utils.model_utils import setup_for_distributed_mode, move_to_device, get_schedule_linear, CheckpointState, \
     get_model_file, get_model_obj, load_states_from_checkpoint
 
+if os.path.exists('./train_log'):
+    os.remove('./train_log')
+
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
@@ -48,7 +51,7 @@ if (logger.hasHandlers()):
     logger.handlers.clear()
 console = logging.StreamHandler()
 logger.addHandler(console)
-fh = logging.FileHandler('./macbert_model_ckp/log')
+fh = logging.FileHandler('./train_log')
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 

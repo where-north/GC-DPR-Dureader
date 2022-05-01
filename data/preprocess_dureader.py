@@ -326,49 +326,43 @@ train_data_top50.json:
   ...  
 ]  
 '''
-input_data_path = '../train_data_top50.json'
-output_data_path = './dureader_data/retrieval_train_data/dual_train.json'
-train_path = './dureader_data/dureader_retrieval-data/train.json'
-
-train_file = open(train_path, 'r', encoding='utf-8')
-pre_train_file = open(input_data_path, 'r', encoding='utf-8')
-dual_train = []
-train_file_list = [json.loads(i) for i in train_file.readlines()]
-pre_train_file_list = json.load(pre_train_file)
-for item1, item2 in zip(train_file_list, pre_train_file_list):
-    temp = {
-        "question": item1["question"],
-        "answers": [],
-        "positive_ctxs": [],
-        "negative_ctxs": [],
-        "hard_negative_ctxs": [],
-    }
-    answer_paragraphs = item1["answer_paragraphs"]
-    answer_paragraphs_ids = [i["paragraph_id"] for i in answer_paragraphs]
-    positive_ctxs = [{"title": "",
-                      "text": i["paragraph_text"],
-                      "score": "",
-                      "title_score": "",
-                      "passage_id": i["paragraph_id"]} for i in answer_paragraphs]
-    hard_negative_ctxs = []
-    # 从尾部开始取 hard negatives
-    for res in item2["top_50"][::-1]:
-        if len(hard_negative_ctxs) >= 10:
-            break
-        if res[0] not in answer_paragraphs_ids:
-            hard_negative_ctxs.append({
-                "title": "",
-                "text": res[1],
-                "score": "",
-                "title_score": "",
-                "passage_id": res[0]
-            })
-
-    temp["hard_negative_ctxs"] = hard_negative_ctxs
-    temp["positive_ctxs"] = positive_ctxs
-    dual_train.append(temp)
-
-print(f"dual_train len：{len(dual_train)}")
-with open(output_data_path, 'w', encoding='utf-8') as f:
-    json.dump(dual_train, f, ensure_ascii=False, indent=4)
+# input_data_path = '../train_data_top50.json'
+# output_data_path = './dureader_data/retrieval_train_data/dual_train.json'
+# train_path = './dureader_data/dureader_retrieval-data/train.json'
+#
+# train_file = open(train_path, 'r', encoding='utf-8')
+# pre_train_file = open(input_data_path, 'r', encoding='utf-8')
+# dual_train = []
+# train_file_list = [json.loads(i) for i in train_file.readlines()]
+# pre_train_file_list = json.load(pre_train_file)
+# for item1, item2 in zip(train_file_list, pre_train_file_list):
+#     temp = {
+#         "question": item1["question"],
+#         "answers": [],
+#         "positive_ctxs": [],
+#         "negative_ctxs": [],
+#         "hard_negative_ctxs": [],
+#     }
+#     answer_paragraphs = item1["answer_paragraphs"]
+#     answer_paragraphs_ids = [i["paragraph_id"] for i in answer_paragraphs]
+#     positive_ctxs = [{"title": "",
+#                       "text": i["paragraph_text"]} for i in answer_paragraphs]
+#     hard_negative_ctxs = []
+#     # 从尾部开始取 hard negatives
+#     for res in item2["top_50"][::-1]:
+#         if len(hard_negative_ctxs) >= 10:
+#             break
+#         if res[0] not in answer_paragraphs_ids:
+#             hard_negative_ctxs.append({
+#                 "title": "",
+#                 "text": res[1]
+#             })
+#
+#     temp["hard_negative_ctxs"] = hard_negative_ctxs
+#     temp["positive_ctxs"] = positive_ctxs
+#     dual_train.append(temp)
+#
+# print(f"dual_train len：{len(dual_train)}")
+# with open(output_data_path, 'w', encoding='utf-8') as f:
+#     json.dump(dual_train, f, ensure_ascii=False, indent=4)
 
