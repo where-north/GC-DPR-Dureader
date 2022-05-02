@@ -157,7 +157,7 @@ def load_passages(ctx_file: str, with_title=True) -> Dict[object, Tuple[str, str
 
 def save_results(passages: Dict[object, Tuple[str, str]], questions: List[str], answers: List[List[str]],
                  top_passages_and_scores: List[Tuple[List[object], List[float]]], per_question_hits: List[List[bool]],
-                 out_file: str
+                 out_file_or_path: str
                  ):
     # join passages text with the result ids, their questions and assigning has|no answer labels
     merged_data = []
@@ -184,16 +184,16 @@ def save_results(passages: Dict[object, Tuple[str, str]], questions: List[str], 
             ]
         })
 
-    with open(out_file, "w") as writer:
+    with open(out_file_or_path, "w") as writer:
         writer.write(json.dumps(merged_data, indent=4) + "\n")
-    logger.info('Saved results * scores  to %s', out_file)
+    logger.info('Saved results * scores  to %s', out_file_or_path)
 
 
 def save_dureader_results(question_ids: List[str],
                           questions,
                           passages,
                           top_passages_and_scores: List[Tuple[List[object], List[float]]],
-                          out_file: str
+                          out_file_or_path: str, n_docs,
                           ):
     '''
     top50_res:
@@ -232,13 +232,20 @@ def save_dureader_results(question_ids: List[str],
 
     print(f'召回结果全部一样的问题有{all_recall_same_count}条！召回结果出现重复的问题有{duplicate_count}条！')
 
-    with open(out_file, 'w') as f:
-        json.dump(top50_res, f, indent=4, ensure_ascii=False)
-    logger.info('Saved results * scores  to %s', out_file)
+    if os.path.isdir(out_file_or_path):
+        res_out_path = out_file_or_path + f'top{n_docs}_res.json'
+        rank_out_path = out_file_or_path + f'train_data_top{n_docs}.json'
+    else:
+        res_out_path = out_file_or_path
+        rank_out_path = f'./data4rerank.json'
 
-    with open('./data4rerank.json', 'w') as f:
+    with open(res_out_path, 'w') as f:
+        json.dump(top50_res, f, indent=4, ensure_ascii=False)
+    logger.info('Saved results * scores  to %s', out_file_or_path)
+
+    with open(rank_out_path, 'w') as f:
         json.dump(data4rerank, f, indent=4, ensure_ascii=False)
-    logger.info('Saved data for re-rank to "./data4rerank.json"')
+    logger.info(f'Saved data for re-rank to {rank_out_path}')
 
 
 def iterate_encoded_files(vector_files: list) -> Iterator[Tuple[object, np.array]]:
@@ -329,17 +336,18 @@ def main(args):
 
     if args.dureader_test:
         all_passages = load_passages(args.ctx_file, with_title=False)
-        if args.out_file:
-            save_dureader_results(question_ids, questions, all_passages, top_ids_and_scores, args.out_file)
+        if args.out_file_or_path:
+            save_dureader_results(question_ids, questions, all_passages, top_ids_and_scores, args.out_file_or_path,
+                                  args.n_docs)
     else:
         all_passages = load_passages(args.ctx_file)
         if len(all_passages) == 0:
             raise RuntimeError('No passages data found. Please specify ctx_file param properly.')
         questions_doc_hits = validate(all_passages, question_answers, top_ids_and_scores, args.validation_workers,
                                       args.match)
-        if args.out_file:
+        if args.out_file_or_path:
             save_results(all_passages, questions, question_answers, top_ids_and_scores, questions_doc_hits,
-                         args.out_file)
+                         args.out_file_or_path)
 
 
 if __name__ == '__main__':
@@ -355,11 +363,11 @@ if __name__ == '__main__':
                         help="All passages file in the tsv format: id \\t passage_text \\t title")
     parser.add_argument('--encoded_ctx_file', type=str, default=None,
                         help='Glob path to encoded passages (from generate_dense_embeddings tool)')
-    parser.add_argument('--out_file', type=str, default=None,
+    parser.add_argument('--out_file_or_path', type=str, default=None,
                         help='output .json file path to write results to ')
     parser.add_argument('--match', type=str, default='string', choices=['regex', 'string'],
                         help="Answer matching logic type")
-    parser.add_argument('--n-docs', type=int, default=200, help="Amount of top docs to return")
+    parser.add_argument('--n_docs', type=int, default=200, help="Amount of top docs to return")
     parser.add_argument('--validation_workers', type=int, default=16,
                         help="Number of parallel processes to validate results")
     parser.add_argument('--batch_size', type=int, default=128, help="Batch size for question encoder forward pass")
