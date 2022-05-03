@@ -157,7 +157,7 @@ def load_passages(ctx_file: str, with_title=True) -> Dict[object, Tuple[str, str
 
 def save_results(passages: Dict[object, Tuple[str, str]], questions: List[str], answers: List[List[str]],
                  top_passages_and_scores: List[Tuple[List[object], List[float]]], per_question_hits: List[List[bool]],
-                 out_file_or_path: str
+                 out_file: str
                  ):
     # join passages text with the result ids, their questions and assigning has|no answer labels
     merged_data = []
@@ -184,19 +184,19 @@ def save_results(passages: Dict[object, Tuple[str, str]], questions: List[str], 
             ]
         })
 
-    with open(out_file_or_path, "w") as writer:
+    with open(out_file, "w") as writer:
         writer.write(json.dumps(merged_data, indent=4) + "\n")
-    logger.info('Saved results * scores  to %s', out_file_or_path)
+    logger.info('Saved results * scores  to %s', out_file)
 
 
 def save_dureader_results(question_ids: List[str],
                           questions,
                           passages,
                           top_passages_and_scores: List[Tuple[List[object], List[float]]],
-                          out_file_or_path: str, n_docs,
+                          out_file: str, n_docs,
                           ):
     '''
-    top50_res:
+    top_n_res:
     {
    "5a279eb92eb911b1f46c3ea4894a0df2":[
       "e36312628ef07fd6ef1f9d054bd88bdd",
@@ -209,11 +209,11 @@ def save_dureader_results(question_ids: List[str],
    [
    {'q_text': '',
    'q_id': '',
-   'top_50': [(doc_id, doc_text), (...)]}
+   'top_n': [(doc_id, doc_text), (...)]}
    ]
    '''
 
-    top50_res = defaultdict(list)
+    top_n_res = defaultdict(list)
     data4rerank = []
     all_recall_same_count, duplicate_count = 0, 0
     for i, qid in enumerate(question_ids):
@@ -222,26 +222,25 @@ def save_dureader_results(question_ids: List[str],
         if len(set(doc_ids)) == 1:
             print(f'第{i}条数据召回结果全部一样！')
             all_recall_same_count += 1
-        elif len(set(doc_ids)) < 50:
-            print(f'第{i}条数据重复的召回结果有{50 - len(set(doc_ids))}条！')
+        elif len(set(doc_ids)) < n_docs:
+            print(f'第{i}条数据重复的召回结果有{n_docs - len(set(doc_ids))}条！')
             duplicate_count += 1
-        top50_res[qid] = doc_ids
+        top_n_res[qid] = doc_ids
 
-        temp = {'q_text': questions[i], 'q_id': qid, 'top_50': [(doc_id, passages[doc_id]) for doc_id in doc_ids]}
+        temp = {'q_text': questions[i], 'q_id': qid, 'top_n': [(doc_id, passages[doc_id]) for doc_id in doc_ids]}
         data4rerank.append(temp)
 
     print(f'召回结果全部一样的问题有{all_recall_same_count}条！召回结果出现重复的问题有{duplicate_count}条！')
 
-    if os.path.isdir(out_file_or_path):
-        res_out_path = out_file_or_path + f'top{n_docs}_res.json'
-        rank_out_path = out_file_or_path + f'train_data_top{n_docs}.json'
-    else:
-        res_out_path = out_file_or_path
-        rank_out_path = f'./data4rerank.json'
+    file_dir, file_name = os.path.split(out_file)
+    prefix = file_name.split('_')[0]
+
+    res_out_path = f'{prefix}_top{n_docs}_res.json'
+    rank_out_path = f'{prefix}_data_top{n_docs}.json'
 
     with open(res_out_path, 'w') as f:
-        json.dump(top50_res, f, indent=4, ensure_ascii=False)
-    logger.info('Saved results * scores  to %s', out_file_or_path)
+        json.dump(top_n_res, f, indent=4, ensure_ascii=False)
+    logger.info('Saved results * scores  to %s', out_file)
 
     with open(rank_out_path, 'w') as f:
         json.dump(data4rerank, f, indent=4, ensure_ascii=False)
@@ -336,8 +335,8 @@ def main(args):
 
     if args.dureader_test:
         all_passages = load_passages(args.ctx_file, with_title=False)
-        if args.out_file_or_path:
-            save_dureader_results(question_ids, questions, all_passages, top_ids_and_scores, args.out_file_or_path,
+        if args.out_file:
+            save_dureader_results(question_ids, questions, all_passages, top_ids_and_scores, args.out_file,
                                   args.n_docs)
     else:
         all_passages = load_passages(args.ctx_file)
@@ -345,9 +344,9 @@ def main(args):
             raise RuntimeError('No passages data found. Please specify ctx_file param properly.')
         questions_doc_hits = validate(all_passages, question_answers, top_ids_and_scores, args.validation_workers,
                                       args.match)
-        if args.out_file_or_path:
+        if args.out_file:
             save_results(all_passages, questions, question_answers, top_ids_and_scores, questions_doc_hits,
-                         args.out_file_or_path)
+                         args.out_file)
 
 
 if __name__ == '__main__':
@@ -363,7 +362,7 @@ if __name__ == '__main__':
                         help="All passages file in the tsv format: id \\t passage_text \\t title")
     parser.add_argument('--encoded_ctx_file', type=str, default=None,
                         help='Glob path to encoded passages (from generate_dense_embeddings tool)')
-    parser.add_argument('--out_file_or_path', type=str, default=None,
+    parser.add_argument('--out_file', type=str, default=None,
                         help='output .json file path to write results to ')
     parser.add_argument('--match', type=str, default='string', choices=['regex', 'string'],
                         help="Answer matching logic type")

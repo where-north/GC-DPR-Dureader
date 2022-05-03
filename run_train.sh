@@ -1,10 +1,12 @@
-# TODO 加大epoch到8 调整warm_step 42到68
+# TODO 加大epoch 5到8 调整warm_step 42到68
+# TODO 加大batch_size 1024到2048 调整learning_rate 6e-05到1e-4 调整warm_step 68到34
 
 epoch=8
-iter_per_epoch=85
-warmup_steps=68
-learning_rate=6e-05
+iter_per_epoch=43
+warmup_steps=34
+learning_rate=1e-4
 hard_negatives=4
+batch_size=2048
 
  CUDA_VISIBLE_DEVICES=1 python train_dense_encoder.py \
     --max_grad_norm 2.0 \
@@ -14,7 +16,7 @@ hard_negatives=4
     --q_sequence_length 32 \
     --p_sequence_length 384 \
     --warmup_steps ${warmup_steps} \
-    --batch_size 1024 \
+    --batch_size ${batch_size} \
     --do_lower_case \
     --train_file ./data/dureader_data/retrieval_train_data_from_baseline/dual_train.json \
     --dev_file ./data/dureader_data/retrieval_train_data_from_baseline/dev_with_hn.json \

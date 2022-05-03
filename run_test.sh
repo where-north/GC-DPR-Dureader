@@ -23,7 +23,7 @@ python dense_retriever.py \
    --ctx_file  ./data/dureader_data/passages.tsv \
    --qa_file ./data/dureader_data/dureader-retrieval-test1/test1.json \
    --encoded_ctx_file './macbert_context_emb/*.pkl' \
-   --out_file_or_path ./macbert_res.json \
+   --out_file ./test_res.json \
    --q_sequence_length 32 \
    --p_sequence_length 384 \
    --n_docs ${n_docs} \
