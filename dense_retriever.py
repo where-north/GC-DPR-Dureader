@@ -240,7 +240,7 @@ def save_dureader_results(question_ids: List[str],
 
     with open(res_out_path, 'w') as f:
         json.dump(top_n_res, f, indent=4, ensure_ascii=False)
-    logger.info('Saved results * scores  to %s', out_file)
+    logger.info(f'Saved results * scores  to {res_out_path}')
 
     with open(rank_out_path, 'w') as f:
         json.dump(data4rerank, f, indent=4, ensure_ascii=False)

@@ -85,21 +85,27 @@ class BiEncoderTrainer(object):
 
     def __init__(self, args):
         self.args = args
+        # shard_id 即 GPU id
         self.shard_id = args.local_rank if args.local_rank != -1 else 0
+        # distributed_factor = GPU数量
         self.distributed_factor = args.distributed_world_size or 1
 
         logger.info("***** Initializing components for training *****")
 
         # if model file is specified, encoder parameters from saved state should be used for initialization
+        # 如果指定model_file，将使用训练好的模型进行初始化
+        # 如果指定的model_file不存在，但存在output_dir，将使用output_dir中最新的模型初始化
         model_file = get_model_file(self.args, self.args.checkpoint_file_name)
         saved_state = None
         if model_file:
             saved_state = load_states_from_checkpoint(model_file)
             set_encoder_params_from_state(saved_state.encoder_params, args)
 
-        # tensorizer 是包含 q_tensorizer 和 p_tensorizer 的列表
+        # tensorizer是包含q_tensorizer和p_tensorizer的列表
+        # encoder_model_type=hf_bert
         tensorizer, model, optimizer = init_biencoder_components(args.encoder_model_type, args)
 
+        # 分布式包装模型
         model, optimizer = setup_for_distributed_mode(model, optimizer, args.device, args.n_gpu,
                                                       args.local_rank,
                                                       args.fp16,
@@ -112,6 +118,7 @@ class BiEncoderTrainer(object):
         self.scheduler_state = None
         self.best_validation_result = None
         self.best_cp_name = None
+        # 重启训练，从断点开始（在训练好的模型上继续训练的话，epoch会在之前模型的基础上叠加）
         if saved_state:
             self._load_saved_state(saved_state)
 
@@ -164,6 +171,7 @@ class BiEncoderTrainer(object):
             shuffle=True,
             shuffle_positives=args.shuffle_positive_ctx
         )
+        # 支持分布式
         train_iterable = self.get_data_iterable(
             args.train_file, args.batch_size,
             process_fn=process_fn,
@@ -183,6 +191,7 @@ class BiEncoderTrainer(object):
             logger.info("Loading scheduler state %s", self.scheduler_state)
             scheduler.load_state_dict(self.scheduler_state)
 
+        # eval_per_epoch=1 每epoch eval 一次
         eval_step = math.ceil(updates_per_epoch / args.eval_per_epoch)
         logger.info("  Eval step = %d", eval_step)
         logger.info("***** Training *****")
@@ -202,8 +211,8 @@ class BiEncoderTrainer(object):
         if epoch == args.val_av_rank_start_epoch:
             self.best_validation_result = None
 
+        # 从val_av_rank_start_epoch开始验证average_rank
         if epoch >= args.val_av_rank_start_epoch:
-            # TODO 添加一个top-50指标
             validation_loss = self.validate_average_rank()
         else:
             validation_loss = self.validate_nll()
@@ -374,11 +383,14 @@ class BiEncoderTrainer(object):
                      train_data_iterator: ShardedDataIterableDataset, ):
 
         args = self.args
+        # rolling_train_loss 过去一段step train loss 的均值
         rolling_train_loss = 0.0
         epoch_loss = 0
         epoch_correct_predictions = 0
 
+        # 多少step显示一次 train_loss
         log_result_step = args.log_batch_step
+        # 多少step显示一次 rolling_train_loss
         rolling_loss_step = args.train_rolling_loss_step
         num_hard_negatives = args.hard_negatives
         num_other_negatives = args.other_negatives
@@ -442,7 +454,8 @@ class BiEncoderTrainer(object):
                 self.validate_and_save(epoch, i + start_iteration, scheduler)
                 self.biencoder.train()
 
-        self.validate_and_save(epoch, data_iteration, scheduler)
+        # 因为eval_step=per_epoch_step，所以这里的validate_and_save就不需要了。
+        # self.validate_and_save(epoch, data_iteration, scheduler)
 
         epoch_loss = (epoch_loss / epoch_batches) if epoch_batches > 0 else 0
         logger.info('Av Loss per epoch=%f', epoch_loss)
@@ -599,6 +612,7 @@ def _do_biencoder_fwd_bwd_pass_cached(
     ctx_attn_mask = ctx_tensorizer.get_attn_mask(input.context_ids)
 
     if model.training:
+        # split_inputs
         q_id_chunks = input.question_ids.split(args.q_chunk_size)
         q_seg_chunks = input.question_segments.split(args.q_chunk_size)
         q_attn_mask_chunks = q_attn_mask.split(args.q_chunk_size)
@@ -787,7 +801,9 @@ def main():
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
 
+    # 设置分布式（初始化等）
     setup_args_gpu(args)
+    # 随机种子
     set_seed(args)
     print_args(args)
 
