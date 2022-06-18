@@ -18,6 +18,7 @@ import math
 import os
 import random
 import time
+import datetime
 
 import torch
 import torch.distributed as dist
@@ -38,8 +39,7 @@ from dpr.utils.dist_utils import all_gather_list
 from dpr.utils.model_utils import setup_for_distributed_mode, move_to_device, get_schedule_linear, CheckpointState, \
     get_model_file, get_model_obj, load_states_from_checkpoint
 
-if os.path.exists('./train_log'):
-    os.remove('./train_log')
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -51,7 +51,7 @@ if (logger.hasHandlers()):
     logger.handlers.clear()
 console = logging.StreamHandler()
 logger.addHandler(console)
-fh = logging.FileHandler('./train_log')
+fh = logging.FileHandler(f'./train_log_{timestamp}')
 fh.setLevel(logging.INFO)
 logger.addHandler(fh)
 
@@ -127,6 +127,9 @@ class BiEncoderTrainer(object):
     def get_data_iterator(self, path: str, batch_size: int, shuffle=True,
                           shuffle_seed: int = 0,
                           offset: int = 0, upsample_rates: list = None) -> ShardedDataIterator:
+        """
+        验证用迭代器
+        """
         data_files = glob.glob(path)
         data = read_data_from_json_files(data_files, upsample_rates)
 
@@ -144,6 +147,9 @@ class BiEncoderTrainer(object):
                           shuffle_seed: int = 0,
                           offset: int = 0, upsample_rates: list = None,
                           process_fn: Callable = None) -> ShardedDataIterator:
+        """
+        训练用迭代器
+        """
         data_files = glob.glob(path)
         data = read_data_from_json_files(data_files, upsample_rates)
 
@@ -397,10 +403,11 @@ class BiEncoderTrainer(object):
         seed = args.seed
         self.biencoder.train()
         epoch_batches = train_data_iterator.max_iterations
-        data_iteration = 0
 
         train_data_iterator.set_epoch(epoch=epoch)
-        start_iteration = train_data_iterator.get_iteration() + 1
+        # 上一次训练中断时的迭代次数 or 从一个batch开始重头训练
+        data_iteration = train_data_iterator.get_iteration()
+        start_iteration = 0 if data_iteration == epoch_batches else data_iteration + 1
 
         loader = DataLoader(train_data_iterator, num_workers=1, batch_size=None, shuffle=False)
 
@@ -693,11 +700,15 @@ def _do_biencoder_fwd_bwd_pass_cached(
                         None, None, None,
                     )[0]
                     surrogate = torch.dot(ctx_chunk_reps.flatten().float(), grad.flatten())
-            surrogate = surrogate * (trainer.distributed_factor / 8.)
+            # surrogate = surrogate * (trainer.distributed_factor / 8.)
             if args.fp16:
                 trainer.scaler.scale(surrogate).backward()
             else:
                 surrogate.backward()
+
+        # for q_model_name, q_para in model.question_model.named_parameters():
+        #     if q_model_name != 'embeddings.word_embeddings.weight' and q_para.grad is not None:
+        #         q_para.grad /= (args.batch_size / args.q_chunk_size)
 
         for id_chunk, seg_chunk, attn_chunk, grad, rnd in zip(
                 context_id_chunks, ctx_segments_chunks, ctx_attn_mask_chunks, ctx_grads, c_rnds):
@@ -715,11 +726,15 @@ def _do_biencoder_fwd_bwd_pass_cached(
                         id_chunk, seg_chunk, attn_chunk
                     )[1]
                     surrogate = torch.dot(ctx_chunk_reps.flatten().float(), grad.flatten())
-            surrogate = surrogate * (trainer.distributed_factor / 8.)
+            # surrogate = surrogate * (trainer.distributed_factor / 8.)
             if args.fp16:
                 trainer.scaler.scale(surrogate).backward()
             else:
                 surrogate.backward()
+
+        # for ctx_model_name, ctx_para in model.ctx_model.named_parameters():
+        #     if ctx_model_name != 'embeddings.word_embeddings.weight' and ctx_para.grad is not None:
+        #         ctx_para.grad /= (args.batch_size / args.ctx_chunk_size)
 
         is_correct = is_correct.sum().item()
         return loss, is_correct

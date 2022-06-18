@@ -209,16 +209,17 @@ def save_dureader_results(question_ids: List[str],
    [
    {'q_text': '',
    'q_id': '',
-   'top_n': [(doc_id, doc_text), (...)]}
+   'top_n': [(doc_id, doc_text, doc_score), (...)]}
    ]
    '''
 
     top_n_res = defaultdict(list)
-    data4rerank = []
+    data4rerank_with_scores, data4rerank = [], []
     all_recall_same_count, duplicate_count = 0, 0
     for i, qid in enumerate(question_ids):
         results_and_scores = top_passages_and_scores[i]
         doc_ids = [doc_id for doc_id in results_and_scores[0]]
+        score_list = [doc_score for doc_score in results_and_scores[1]]
         if len(set(doc_ids)) == 1:
             print(f'第{i}条数据召回结果全部一样！')
             all_recall_same_count += 1
@@ -227,7 +228,22 @@ def save_dureader_results(question_ids: List[str],
             duplicate_count += 1
         top_n_res[qid] = doc_ids
 
-        temp = {'q_text': questions[i], 'q_id': qid, 'top_n': [(doc_id, passages[doc_id]) for doc_id in doc_ids]}
+        min_, max_ = min(score_list), max(score_list)
+        diff = max_ - min_
+        norm_score_list = []
+        for sco in score_list:
+            if diff > 0:
+                norm_score_list.append((sco - min_) / diff)
+            else:
+                norm_score_list.append(1)
+
+        temp = {'q_text': questions[i], 'q_id': qid,
+                'top_n': [(doc_id, passages[doc_id], np.float_(doc_score)) for doc_id, doc_score in
+                          zip(doc_ids, norm_score_list)]}
+        data4rerank_with_scores.append(temp)
+
+        temp = {'q_text': questions[i], 'q_id': qid,
+                'top_n': [(doc_id, passages[doc_id]) for doc_id in doc_ids]}
         data4rerank.append(temp)
 
     print(f'召回结果全部一样的问题有{all_recall_same_count}条！召回结果出现重复的问题有{duplicate_count}条！')
@@ -237,14 +253,19 @@ def save_dureader_results(question_ids: List[str],
 
     res_out_path = f'{prefix}_top{n_docs}_res.json'
     rank_out_path = f'{prefix}_data_top{n_docs}.json'
+    rank_with_score_out_path = f'{prefix}_data_top{n_docs}_with_scores.json'
 
     with open(res_out_path, 'w') as f:
         json.dump(top_n_res, f, indent=4, ensure_ascii=False)
     logger.info(f'Saved results * scores  to {res_out_path}')
 
     with open(rank_out_path, 'w') as f:
-        json.dump(data4rerank, f, indent=4, ensure_ascii=False)
+        json.dump(data4rerank, f, ensure_ascii=False)
     logger.info(f'Saved data for re-rank to {rank_out_path}')
+
+    with open(rank_with_score_out_path, 'w') as f:
+        json.dump(data4rerank_with_scores, f, ensure_ascii=False)
+    logger.info(f'Saved data for re-rank with scores to {rank_with_score_out_path}')
 
 
 def iterate_encoded_files(vector_files: list) -> Iterator[Tuple[object, np.array]]:

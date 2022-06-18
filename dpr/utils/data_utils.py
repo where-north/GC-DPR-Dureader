@@ -91,7 +91,7 @@ class ShardedDataIterator(object):
             self.shard_end_idx,
             self.max_iterations)
 
-        self.iteration = offset  # to track in-shard iteration status
+        self.iteration = 0 if offset == self.max_iterations else offset  # to track in-shard iteration status
         self.shuffle = shuffle
         self.batch_size = batch_size
         self.shuffle_seed = shuffle_seed
@@ -196,6 +196,7 @@ class ShardedDataIterableDataset(ShardedDataIterator, IterableDataset):
 
         logger.info('Finished iterating, iteration={}, shard={}'.format(self.iteration, self.shard_id))
         # reset the iteration status
+        self.iteration = 0
         raise StopIteration
 
 
