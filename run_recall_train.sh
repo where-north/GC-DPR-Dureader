@@ -1,8 +1,8 @@
 
 epoch=8
 iter_per_epoch=85
-n_docs=50
-checkpoint_dir=0.672
+n_docs=200
+checkpoint_dir=0.693
 
 ## 对训练集进行召回（Top-200）
 #CUDA_VISIBLE_DEVICES=0 python dense_retriever.py \
@@ -33,7 +33,7 @@ checkpoint_dir=0.672
 
 
 
-# 对验证集进行召回（Top-50）
+# 对验证集进行召回（Top-200）
 CUDA_VISIBLE_DEVICES=0 python dense_retriever.py \
    --dureader_test \
    --model_file ./${checkpoint_dir}/macbert_model_ckp/dpr_biencoder.$[epoch-1].${iter_per_epoch} \

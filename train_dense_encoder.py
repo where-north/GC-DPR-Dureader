@@ -51,9 +51,9 @@ if (logger.hasHandlers()):
     logger.handlers.clear()
 console = logging.StreamHandler()
 logger.addHandler(console)
-fh = logging.FileHandler(f'./train_log_{timestamp}')
-fh.setLevel(logging.INFO)
-logger.addHandler(fh)
+# fh = logging.FileHandler(f'./train_log')
+# fh.setLevel(logging.INFO)
+# logger.addHandler(fh)
 
 
 class RandContext:

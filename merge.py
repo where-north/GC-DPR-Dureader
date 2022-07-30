@@ -138,8 +138,8 @@ def merge_dpr_train_data():
 
 
 def merge_dpr_dev_data():
-    dpr_top_dev_data1 = get_dpr_data('./0.672/dev_data_top50_with_scores.json')
-    dpr_top_dev_data2 = get_dpr_data('./0.693/dev_data_top50_with_scores.json')
+    dpr_top_dev_data1 = get_dpr_data('./0.672/dev_data_top200_with_scores.json')
+    dpr_top_dev_data2 = get_dpr_data('./0.693/dev_data_top200_with_scores.json')
     passage_collection = defaultdict(str)
     merge_dev_data = []
     for qid in tqdm(dpr_top_dev_data1.keys()):
@@ -175,12 +175,12 @@ def merge_dpr_dev_data():
 
 def merge_dpr_test_data():
     dpr_top_test_data1 = get_dpr_data('./0.672/test_data_top200_with_scores.json')
-    dpr_top_test_data2 = get_dpr_data('./0.693/test_data_top50_with_scores.json')
+    dpr_top_test_data2 = get_dpr_data('./0.693/test_data_top200_with_scores.json')
     passage_collection = defaultdict(str)
     merge_test_data = []
     for qid in tqdm(dpr_top_test_data1.keys()):
         pid_score_dict = {}
-        for item in dpr_top_test_data1[qid]['top_n'][:50]:
+        for item in dpr_top_test_data1[qid]['top_n']:
             pid, p_text, score = item[0], item[1], item[2]
             pid_score_dict[pid] = score
             if pid not in passage_collection:
@@ -210,6 +210,6 @@ def merge_dpr_test_data():
 
 
 if __name__ == '__main__':
-    merge_dpr_train_data()
+    # merge_dpr_train_data()
     merge_dpr_dev_data()
-    merge_dpr_test_data()
+    # merge_dpr_test_data()
